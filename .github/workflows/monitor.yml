@@ -1,0 +1,41 @@
+name: Strategy Desk Monitor
+
+on:
+  schedule:
+    # UTC 기준 5분마다. GitHub 스케줄은 정확히 정시에 안 돌 수 있고(수 분 지연 가능),
+    # 60일간 커밋이 없으면 저장소가 비활성으로 간주돼 스케줄이 자동으로 꺼집니다.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}   # Actions 탭에서 수동으로도 실행 가능
+
+permissions:
+  contents: write   # results.json을 저장소에 커밋하기 위해 필요
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: strategy-desk-monitor
+      cancel-in-progress: false
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 16개 전략 계산 (DOGE-USDT, 5분봉)
+        env:
+          SYMBOL: DOGEUSDT
+          INTERVAL: 5m
+          CAPITAL: '10000'
+        run: node scripts/run-strategies.mjs
+
+      - name: 결과 커밋 & 푸시
+        run: |
+          git config user.name "strategy-desk-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add results.json
+          git diff --quiet --cached || git commit -m "auto: update results.json ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git push

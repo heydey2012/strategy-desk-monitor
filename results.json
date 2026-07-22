@@ -1,0 +1,11 @@
+{
+  "symbol": "DOGEUSDT",
+  "symbolLabel": "DOGE-USDT",
+  "interval": "5m",
+  "capital": 10000,
+  "periodStart": null,
+  "periodEnd": null,
+  "candleCount": 0,
+  "generatedAt": null,
+  "strategies": []
+}

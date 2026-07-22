@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRATEGY DESK — GitHub Actions 자동 모니터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0A0C0F; --panel:#12151B; --panel-2:#171B22; --border:#232830; --text:#E4E7EB; --dim:#7C8591; --dimmer:#4B525C;
+    --long:#2FD180; --long-dim:#173327; --flat:#525862; --flat-dim:#1C1F24; --accent:#35C6F4; --neg:#FF5470; --warn:#F5B342; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 60px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--long);animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,209,128,.55);}70%{box-shadow:0 0 0 8px rgba(47,209,128,0);}100%{box-shadow:0 0 0 0 rgba(47,209,128,0);}}
+  h1{font-family:'IBM Plex Mono',monospace;font-size:24px;margin:6px 0 4px;}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:20px;}
+  .metaBar{display:flex;gap:14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:14px 18px;margin-bottom:20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);}
+  .metaBar b{color:var(--text);}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;position:relative;}
+  .card:hover{border-color:var(--accent);}
+  .cardtopRow{display:flex;gap:10px;align-items:flex-start;}
+  .rankBadge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;width:26px;height:26px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .rankBadge.r1{background:#3a2f0a;color:#F5C518;border:1px solid #6b551a;}
+  .rankBadge.r2{background:#2a2d33;color:#C9CFD8;border:1px solid #4a4f58;}
+  .rankBadge.r3{background:#3a2414;color:#D98A4B;border:1px solid #6b4620;}
+  .rankBadge.rN{background:var(--flat-dim);color:var(--dimmer);border:1px solid var(--border);}
+  .cid{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--dimmer);}
+  .cname{font-size:14px;font-weight:600;margin-top:2px;}
+  .ctag{font-size:10px;color:var(--dim);font-family:'IBM Plex Mono',monospace;margin-top:1px;}
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;margin-left:auto;height:fit-content;}
+  .badge.long{background:var(--long-dim);color:var(--long);} .badge.flat{background:var(--flat-dim);color:var(--flat);}
+  .pnl{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;margin-top:10px;}
+  .pnl.pos{color:var(--long);} .pnl.neg{color:var(--neg);} .pnl.zero{color:var(--dim);}
+  .pnllabel{font-size:10px;color:var(--dimmer);}
+  #modalOverlay{display:none;position:fixed;inset:0;background:rgba(4,5,7,.72);z-index:50;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
+  #modalOverlay.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;max-width:700px;width:100%;overflow:hidden;}
+  .modalHead{display:flex;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);background:var(--panel-2);}
+  .closeBtn{background:none;border:1px solid var(--border);color:var(--dim);width:28px;height:28px;border-radius:8px;cursor:pointer;}
+  table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  thead th{background:var(--panel-2);text-align:left;padding:8px 10px;color:var(--dim);font-size:10px;border-bottom:1px solid var(--border);}
+  tbody td{padding:8px 10px;border-bottom:1px solid #1a1d23;white-space:nowrap;}
+  .tBuy{color:var(--long);} .tSell{color:var(--neg);} .tPrem{color:var(--warn);}
+  .err{background:#2a1015;border:1px solid #5a1e2c;color:#ffb4c0;padding:16px;border-radius:10px;font-size:13px;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span> GITHUB ACTIONS · 5분마다 자동 갱신</div>
+  <h1>Strategy Desk — 자동 모니터</h1>
+  <div class="sub" id="subLine">불러오는 중…</div>
+  <div class="metaBar" id="metaBar"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="modalOverlay">
+  <div class="modal">
+    <div class="modalHead">
+      <div><div id="modalTitle" style="font-weight:600;font-size:15px;"></div><div id="modalTag" style="font-size:11px;color:var(--dim);margin-top:3px;"></div></div>
+      <button class="closeBtn" id="modalClose">✕</button>
+    </div>
+    <div style="max-height:420px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>시각</th><th>구분</th><th>종목</th><th>가격</th><th>수량</th><th>금액</th><th>손익</th></tr></thead>
+        <tbody id="modalBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function fmtDate(iso){ return new Date(iso).toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+
+async function load(){
+  try{
+    const res = await fetch('./results.json?t=' + Date.now());
+    if(!res.ok) throw new Error('results.json을 불러오지 못했습니다 (HTTP '+res.status+')');
+    const data = await res.json();
+    render(data);
+  }catch(e){
+    document.getElementById('grid').innerHTML = `<div class="err">결과를 불러오지 못했습니다: ${e.message}<br>
+      GitHub Actions가 아직 한 번도 안 돌았거나(Actions 탭 확인), results.json 경로가 다를 수 있습니다.</div>`;
+  }
+}
+
+let currentData = null;
+function render(data){
+  currentData = data;
+  document.getElementById('subLine').textContent = `${data.symbolLabel} · ${data.interval} 봉 기준 · 시작자본 ${data.capital.toLocaleString('ko-KR')}`;
+  document.getElementById('metaBar').innerHTML = `
+    <span>기간: <b>${fmtDate(data.periodStart)} ~ ${fmtDate(data.periodEnd)}</b></span>
+    <span>캔들: <b>${data.candleCount}개</b></span>
+    <span>마지막 갱신: <b>${fmtDate(data.generatedAt)}</b></span>
+  `;
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  data.strategies.forEach((s, idx)=>{
+    const rank = idx+1;
+    const rankCls = rank===1?'r1':rank===2?'r2':rank===3?'r3':'rN';
+    const rankIcon = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+    const pctClass = s.pct>0.01?'pos':s.pct<-0.01?'neg':'zero';
+    const el = document.createElement('div'); el.className='card';
+    el.innerHTML = `
+      <div class="cardtopRow">
+        <div class="rankBadge ${rankCls}">${rankIcon}</div>
+        <div style="flex:1;">
+          <div class="cid">STRAT ${s.id}</div>
+          <div class="cname">${s.name}</div>
+          <div class="ctag">${s.tag}</div>
+        </div>
+        <div class="badge ${s.badge==='LONG'?'long':'flat'}">${s.badge}</div>
+      </div>
+      <div class="pnl ${pctClass}">${s.pct>=0?'+':''}${s.pct.toFixed(2)}%</div>
+      <div class="pnllabel">누적 수익률 · 클릭해서 매매내역 보기</div>
+    `;
+    el.addEventListener('click', ()=> openModal(s));
+    grid.appendChild(el);
+  });
+}
+
+function openModal(s){
+  document.getElementById('modalTitle').textContent = `STRAT ${s.id} · ${s.name}`;
+  document.getElementById('modalTag').textContent = s.tag;
+  const body = document.getElementById('modalBody');
+  if(!s.trades.length){ body.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:#4B525C;">거래 기록이 없습니다.</td></tr>'; }
+  else{
+    body.innerHTML = s.trades.slice().reverse().map(t=>{
+      const cls = t.type==='BUY'?'tBuy':t.type==='SELL'?'tSell':'tPrem';
+      const label = t.type==='BUY'?'매수':t.type==='SELL'?'매도':'프리미엄';
+      const pnl = t.pnl!==null ? `${t.pnl>=0?'+':''}$${t.pnl} (${t.pnlPct>=0?'+':''}${t.pnlPct}%)` : '—';
+      return `<tr><td>${t.time?fmtDate(t.time):'-'}</td><td class="${cls}">${label}</td><td>${t.instrument}</td><td>$${t.price}</td><td>${t.qty}</td><td>$${t.amount}</td><td>${pnl}</td></tr>`;
+    }).join('');
+  }
+  document.getElementById('modalOverlay').classList.add('show');
+}
+document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('modalOverlay').classList.remove('show'));
+document.getElementById('modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay') e.currentTarget.classList.remove('show'); });
+
+load();
+setInterval(load, 60000); // 1분마다 results.json 다시 확인 (실제 갱신은 Actions가 5분마다 커밋할 때)
+</script>
+</body>
+</html>
